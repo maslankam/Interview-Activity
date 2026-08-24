@@ -10,12 +10,12 @@ using RateLimiter.Grpc;
 
 namespace RateLimiterService.Services
 {
-    public class RateLimiterServiceImpl : global::RateLimiter.Grpc.RateLimiter.RateLimiterBase
+    public class RateLimiterService : global::RateLimiter.Grpc.RateLimiter.RateLimiterBase
     {
         private readonly RateLimitDbContext _db;
         private readonly State.RateLimiter _rateLimiter;
 
-        public RateLimiterServiceImpl(RateLimitDbContext db, State.RateLimiter rateLimiter)
+        public RateLimiterService(RateLimitDbContext db, State.RateLimiter rateLimiter)
         {
             _db = db ?? throw new ArgumentNullException(nameof(db));
             _rateLimiter = rateLimiter ?? throw new ArgumentNullException(nameof(rateLimiter));
@@ -23,6 +23,18 @@ namespace RateLimiterService.Services
 
         public override async Task<ConfigureResourceResponse> ConfigureResource(ConfigureResourceRequest request, ServerCallContext context)
         {
+            if (request is null)
+                throw new RpcException(new Status(StatusCode.InvalidArgument, "Request cannot be null"));
+
+            if (string.IsNullOrWhiteSpace(request.Resource))
+                throw new RpcException(new Status(StatusCode.InvalidArgument, "Resource name cannot be empty"));
+
+            if (request.MaxRequests <= 0)
+                throw new RpcException(new Status(StatusCode.InvalidArgument, "MaxRequests must be greater than 0"));
+
+            if (request.WindowSeconds <= 0)
+                throw new RpcException(new Status(StatusCode.InvalidArgument, "WindowSeconds must be greater than 0"));
+
             var existingEntry = await _db.RateLimits.SingleOrDefaultAsync(r => r.resource == request.Resource);
 
             if (existingEntry is null)
@@ -31,13 +43,13 @@ namespace RateLimiterService.Services
                 {
                     resource = request.Resource,
                     max_requests = request.MaxRequests,
-                    window_seconds = DateTime.UtcNow.AddSeconds(request.WindowSeconds)
+                    window_seconds = request.WindowSeconds
                 });
             }
             else
             {
                 existingEntry.max_requests = request.MaxRequests;
-                existingEntry.window_seconds = DateTime.UtcNow.AddSeconds(request.WindowSeconds);
+                existingEntry.window_seconds = request.WindowSeconds;
             }
 
             await _db.SaveChangesAsync();
@@ -49,11 +61,19 @@ namespace RateLimiterService.Services
 
         public override async Task<RateLimitResponse> CheckRateLimit(RateLimitRequest request, ServerCallContext context)
         {
+            if (request is null)
+                throw new RpcException(new Status(StatusCode.InvalidArgument, "Request cannot be null"));
+
+            if (string.IsNullOrWhiteSpace(request.Resource))
+                throw new RpcException(new Status(StatusCode.InvalidArgument, "Resource cannot be empty"));
+
+            if (string.IsNullOrWhiteSpace(request.ClientId))
+                throw new RpcException(new Status(StatusCode.InvalidArgument, "ClientId cannot be empty"));
+
             bool isAllowed = await _rateLimiter.IsRequestAllowedAsync(request.Resource, request.ClientId);  
-            if(isAllowed == false)
+            if(isAllowed)
             {
                 return new RateLimitResponse { Allowed = true };
-                
             }
             return new RateLimitResponse { Allowed = false };
         }

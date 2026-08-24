@@ -11,6 +11,7 @@
       <PrivateAssets>All</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="8.0.0" />
+    <PackageReference Include="Google.Api.CommonProtos" Version="2.11.0" />
   </ItemGroup>
   <ItemGroup>
     <Protobuf Include="../../ratelimiter.proto" GrpcServices="Server" />

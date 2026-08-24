@@ -10,8 +10,8 @@ builder.Services.AddDbContext<RateLimitDbContext>(options =>
 {
     options.UseInMemoryDatabase("RateLimiterDb");
 });
-builder.Services.AddSingleton<RateLimiter>();
-builder.Services.AddScoped<RateLimiterService.Services.RateLimiterServiceImpl>();
+builder.Services.AddSingleton<RateLimiterService.State.RateLimiter>();
+builder.Services.AddScoped<RateLimiterService.Services.RateLimiterService>();
 
 
 builder.WebHost.ConfigureKestrel(options =>
@@ -23,7 +23,7 @@ builder.WebHost.ConfigureKestrel(options =>
 });
 
 var app = builder.Build();
-app.MapGrpcService<RateLimiterService.Services.RateLimiterServiceImpl>();
+app.MapGrpcService<RateLimiterService.Services.RateLimiterService>();
 app.MapGet("/", () => "RateLimiter gRPC service running.");
 
 app.Run();
